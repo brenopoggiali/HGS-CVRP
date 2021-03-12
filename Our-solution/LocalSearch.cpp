@@ -1,4 +1,5 @@
-#include "LocalSearch.h" 
+#include "LocalSearch.h"
+#include "stdc++.h"
 
 void LocalSearch::run(Individual * indiv, double penaltyCapacityLS, double penaltyDurationLS)
 {
@@ -281,6 +282,87 @@ bool LocalSearch::move6()
 	updateRouteData(routeU);
 	if (routeU != routeV) updateRouteData(routeV);
 	return true;
+}
+
+int LocalSearch::reverse_segment_if_better(int i, int j, int k) {
+	// Given tour [...A-B...C-D...E-F...]
+    Node * A = tour[i-1];
+	Node * B = tour[i];
+	Node * C = tour[j-1];
+	Node * D = tour[j];
+	Node * E = tour[k-1];
+	Node * F = tour[k % tour.length];
+    int d0 = distance(A, B) + distance(C, D) + distance(E, F);
+    int d1 = distance(A, C) + distance(B, D) + distance(E, F);
+    int d2 = distance(A, B) + distance(C, E) + distance(D, F);
+    int d3 = distance(A, D) + distance(E, B) + distance(C, F);
+    int d4 = distance(F, B) + distance(C, D) + distance(E, A);
+
+    if (d0 > d1) {
+        tour[i:j] = reversed(tour[i:j]);
+        return -d0 + d1;
+    }
+	else if (d0 > d2) {
+        tour[j:k] = reversed(tour[j:k]);
+        return -d0 + d2;
+    }
+	else if (d0 > d4) {
+        tour[i:k] = reversed(tour[i:k]);
+        return -d0 + d4;
+    }
+	else if (d0 > d3) {
+        tmp = tour[j:k] + tour[i:j];
+        tour[i:k] = tmp;
+        return -d0 + d3;
+	}
+	
+	return 0;
+}
+
+bool LocalSearch::three_opt() {
+	if (nodeU->position > nodeV->position) return false;
+
+	double cost = params->timeCost[nodeUIndex][nodeVIndex] + params->timeCost[nodeXIndex][nodeYIndex] - params->timeCost[nodeUIndex][nodeXIndex] - params->timeCost[nodeVIndex][nodeYIndex] + nodeV->cumulatedReversalDistance - nodeX->cumulatedReversalDistance;
+
+	if (cost > -MY_EPSILON) return false;
+	if (nodeU->next == nodeV) return false;
+
+	/* CHECK CONDITIONS ABOVE HERE */
+
+	while (true) {
+		int delta = 0;
+		std::vector<std::vector<int> > arguments =  all_segments(1); // FIX CORRECT SIZE (N)
+
+		for (int i = 0; i < arguments.size(); i++) {
+			int a = arguments[i][0];
+			int b = arguments[i][1];
+			int c = arguments[i][2];
+			delta += reverse_segment_if_better(a, b, c);
+		}
+		
+
+		if (delta >= 0) {
+			break;
+		}
+	}
+
+	return true;
+}
+
+std::vector<std::vector<int> > LocalSearch::all_segments(int n) {
+	std::vector<std::vector<int> > result;
+	for (int i=0; i < n; i++) {
+		for (int j = i+2; j < n; j++) {
+			for (int k = j+2; i < n + (i>0); i++) {
+				std::vector<int> inside; 
+				inside.push_back(i);
+				inside.push_back(j);
+				inside.push_back(k);
+				result.push_back(inside);
+			}
+		}
+	}
+	return result;
 }
 
 bool LocalSearch::move7()
