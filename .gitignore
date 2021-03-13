@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# VS Code
+.vscode/
+
+# HGS-CVRP
+genvrp
+
+# Results
+mySolution.sol*
