@@ -1,5 +1,6 @@
 #include "LocalSearch.h"
 #include "stdc++.h"
+#include <unistd.h>
 
 void LocalSearch::run(Individual * indiv, double penaltyCapacityLS, double penaltyDurationLS)
 {
@@ -28,32 +29,52 @@ void LocalSearch::run(Individual * indiv, double penaltyCapacityLS, double penal
 			for (int posV = 0; posV < (int)params->correlatedVertices[nodeU->cour].size(); posV++)
 			{
 				nodeV = &clients[params->correlatedVertices[nodeU->cour][posV]];
-				if (loopID == 0 || std::max<int>(nodeU->route->whenLastModified, nodeV->route->whenLastModified) > lastTestRINodeU) // only evaluate moves involving routes that have been modified since last move evaluations for nodeU
+				if (loopID == 0  || std::max<int>(nodeU->route->whenLastModified, nodeV->route->whenLastModified) > lastTestRINodeU) // only evaluate moves involving routes that have been modified since last move evaluations for nodeU
 				{
 					// Randomizing the order of the neighborhoods within this loop does not matter much as we are already randomizing the order of the node pairs (and it's not very common to find improving moves of different types for the same node pair)
 					setLocalVariablesRouteU();
 					setLocalVariablesRouteV();
+					std::cout << " move1 " << std::endl;
 					if (move1()) continue; // RELOCATE
+					std::cout << " move2 " << std::endl;
 					if (move2()) continue; // RELOCATE
+					std::cout << " move3 " << std::endl;
 					if (move3()) continue; // RELOCATE
+					std::cout << " move4 " << std::endl;
 					if (nodeUIndex <= nodeVIndex && move4()) continue; // SWAP
+					std::cout << " move5 " << std::endl;
 					if (move5()) continue; // SWAP
+					std::cout << " move6 " << std::endl;
 					if (nodeUIndex <= nodeVIndex && move6()) continue; // SWAP
+					std::cout << " move7 " << std::endl;
 					if (routeU == routeV && move7()) continue; // 2-OPT
+					std::cout << " move8 " << std::endl;
 					if (routeU != routeV && move8()) continue; // 2-OPT*
+					std::cout << " move9 " << std::endl;
 					if (routeU != routeV && move9()) continue; // 2-OPT*
+
+					
 
 					// Trying moves that insert nodeU directly after the depot
 					if (nodeV->prev->isDepot)
 					{
 						nodeV = nodeV->prev;
 						setLocalVariablesRouteV();
+						std::cout << " move1.1 " << std::endl;
 						if (move1()) continue; // RELOCATE
+						std::cout << " move1.2 " << std::endl;
 						if (move2()) continue; // RELOCATE
+						std::cout << " move1.3 " << std::endl;
 						if (move3()) continue; // RELOCATE
+						std::cout << " move1.8 " << std::endl;
 						if (routeU != routeV && move8()) continue; // 2-OPT*
+						std::cout << " move1.9 " << std::endl;
 						if (routeU != routeV && move9()) continue; // 2-OPT*
 					}
+						std::cout << " move10 " << std::endl;
+					if (routeU == routeV && move10()) continue; // 3-OPT
+					// bool jose = move10();
+					// std::cout << "bool: " << jose << std::endl;
 				}
 			}
 
@@ -116,6 +137,20 @@ void LocalSearch::setLocalVariablesRouteV()
 	serviceV = params->cli[nodeVIndex].serviceDuration;
 	loadY	 = params->cli[nodeYIndex].demand;
 	serviceY = params->cli[nodeYIndex].serviceDuration;
+}
+
+void LocalSearch::setLocalVariablesRouteW()
+{
+	routeW = nodeW->route;
+	nodeZ = nodeW->next;
+	nodeZNextIndex = nodeZ->next->cour;
+	nodeWIndex = nodeW->cour;
+	nodeWPrevIndex = nodeW->prev->cour;
+	nodeZIndex = nodeZ->cour;
+	loadW    = params->cli[nodeWIndex].demand;
+	serviceW = params->cli[nodeWIndex].serviceDuration;
+	loadZ	 = params->cli[nodeZIndex].demand;
+	serviceZ = params->cli[nodeZIndex].serviceDuration;
 }
 
 bool LocalSearch::move1()
@@ -284,6 +319,7 @@ bool LocalSearch::move6()
 	return true;
 }
 
+/*
 int LocalSearch::reverse_segment_if_better(int i, int j, int k) {
 	// Given tour [...A-B...C-D...E-F...]
     Node * A = tour[i-1];
@@ -318,52 +354,102 @@ int LocalSearch::reverse_segment_if_better(int i, int j, int k) {
 	
 	return 0;
 }
+*/
 
-bool LocalSearch::three_opt() {
+bool LocalSearch::move10() {
+
 	if (nodeU->position > nodeV->position) return false;
-
-	double cost = params->timeCost[nodeUIndex][nodeVIndex] + params->timeCost[nodeXIndex][nodeYIndex] - params->timeCost[nodeUIndex][nodeXIndex] - params->timeCost[nodeVIndex][nodeYIndex] + nodeV->cumulatedReversalDistance - nodeX->cumulatedReversalDistance;
-
-	if (cost > -MY_EPSILON) return false;
 	if (nodeU->next == nodeV) return false;
+	
+	// Node *bestW = new Node;
+	// Node *bestZ = new Node;
 
-	/* CHECK CONDITIONS ABOVE HERE */
+	Node *bestW = nullptr, *bestZ = nullptr;
+	int minCost = 0;
+	
+	for (int posW = 0; posW < (int)params->correlatedVertices[nodeV->cour].size(); posW++){
+		std::cout <<  "posW:" << posW << std::endl;
+		nodeW = &clients[params->correlatedVertices[nodeU->cour][posW]];
+		if(nodeW->isDepot) continue;
+		if (nodeV->position > nodeW->position) continue;
+		if (nodeV->next == nodeW) continue;
 
-	while (true) {
-		int delta = 0;
-		std::vector<std::vector<int> > arguments =  all_segments(1); // FIX CORRECT SIZE (N)
+		std::cout <<  "moving" << std::endl;
+		setLocalVariablesRouteW();
+		if (routeW != routeV) continue;
+		std::cout << "rota igual" << std::endl;
 
-		for (int i = 0; i < arguments.size(); i++) {
-			int a = arguments[i][0];
-			int b = arguments[i][1];
-			int c = arguments[i][2];
-			delta += reverse_segment_if_better(a, b, c);
-		}
+
+
+		// d0 = distance(U, X) + distance(V, Y) + distance(W, Z)
+    // d1 = distance(U, V) + distance(X, Y) + distance(W, Z)
+    // d2 = distance(U, X) + distance(V, W) + distance(Y, Z)
+    // d3 = distance(U, Y) + distance(W, X) + distance(V, Z)
+		// Y-W ... Z-U ... X-V
+    // d4 = distance(Z, X) + distance(V, Y) + distance(W, U)
+
+		double cost =  params->timeCost[nodeUIndex][nodeYIndex]
+		+ params->timeCost[nodeWIndex][nodeXIndex]
+		+ params->timeCost[nodeVIndex][nodeZIndex]
+		- params->timeCost[nodeUIndex][nodeXIndex]
+		- params->timeCost[nodeVIndex][nodeYIndex]
+		- params->timeCost[nodeWIndex][nodeZIndex]
+		+ nodeY->cumulatedReversalDistance
+		- nodeW->cumulatedReversalDistance
+		+ nodeX->cumulatedReversalDistance
+		- nodeV->cumulatedReversalDistance;
 		
+		if (cost > -MY_EPSILON) continue;
 
-		if (delta >= 0) {
-			break;
+		if(cost < minCost){
+			minCost = cost;
+			bestW = nodeW;
+			bestZ = nodeZ;
 		}
-	}
 
+		std::cout <<  "=========================" << cost << std::endl;
+		// U-X ... V-Y ... W-Z
+		// U-Y ... W-X ... V-Z
+
+	}
+	// delete bestW;
+	// delete bestZ;
+	std::cout << "============ saiu do loop ==========" << minCost<< std::endl;
+	if(minCost == 0) return false;
+	std::cout << "============ Min cost ==========" << minCost << std::endl;
+	// usleep(300);
+
+	nodeU->next = nodeY;
+	nodeY->prev = nodeU;
+	bestW->next = nodeX;
+	nodeX->prev = bestW;
+	nodeV->next = bestZ;
+	bestZ->prev = nodeV;
+	nbMoves++;
+	searchCompleted = false;
+
+	updateRouteData(routeU);
+	std::cout << "============ Updated ==========" << std::endl;
+	// updateRouteData(routeV);
+	// updateRouteData(routeW);
 	return true;
 }
 
-std::vector<std::vector<int> > LocalSearch::all_segments(int n) {
-	std::vector<std::vector<int> > result;
-	for (int i=0; i < n; i++) {
-		for (int j = i+2; j < n; j++) {
-			for (int k = j+2; i < n + (i>0); i++) {
-				std::vector<int> inside; 
-				inside.push_back(i);
-				inside.push_back(j);
-				inside.push_back(k);
-				result.push_back(inside);
-			}
-		}
-	}
-	return result;
-}
+// std::vector<std::vector<int> > LocalSearch::all_segments(int n) {
+// 	std::vector<std::vector<int> > result;
+// 	for (int i=0; i < n; i++) {
+// 		for (int j = i+2; j < n; j++) {
+// 			for (int k = j+2; i < n + (i>0); i++) {
+// 				std::vector<int> inside; 
+// 				inside.push_back(i);
+// 				inside.push_back(j);
+// 				inside.push_back(k);
+// 				result.push_back(inside);
+// 			}
+// 		}
+// 	}
+// 	return result;
+// }
 
 bool LocalSearch::move7()
 {
@@ -419,6 +505,7 @@ bool LocalSearch::move8()
 	Node * xx = nodeX;
 	Node * vv = nodeV;
 
+	std::cout << "while1" << std::endl;
 	while (!xx->isDepot)
 	{
 		temp = xx->next;
@@ -428,6 +515,7 @@ bool LocalSearch::move8()
 		xx = temp;
 	}
 
+	std::cout << "while2" << std::endl;
 	while (!vv->isDepot)
 	{
 		temp = vv->prev;
@@ -436,7 +524,7 @@ bool LocalSearch::move8()
 		vv->route = routeU;
 		vv = temp;
 	}
-
+	std::cout << "acabou2" << std::endl;
 	nodeU->next = nodeV;
 	nodeV->prev = nodeU;
 	nodeX->next = nodeY;

@@ -132,18 +132,23 @@ private:
 	// nodeVPrev -> nodeV -> nodeY -> nodeYNext
 	Node * nodeU ;
 	Node * nodeX ;
-    Node * nodeV ;
+	Node * nodeV ;
 	Node * nodeY ;
+	Node * nodeW ;
+	Node * nodeZ ;
 	Route * routeU ;
 	Route * routeV ;
+	Route * routeW ;
 	int nodeUPrevIndex, nodeUIndex, nodeXIndex, nodeXNextIndex ;	
 	int nodeVPrevIndex, nodeVIndex, nodeYIndex, nodeYNextIndex ;	
-	double loadU, loadX, loadV, loadY;
-	double serviceU, serviceX, serviceV, serviceY;
+	int nodeWPrevIndex, nodeWIndex, nodeZIndex, nodeZNextIndex ;	
+	double loadU, loadX, loadV, loadY, loadW, loadZ;
+	double serviceU, serviceX, serviceV, serviceY, serviceW, serviceZ;
 	double penaltyCapacityLS, penaltyDurationLS ;
 
 	void setLocalVariablesRouteU(); // Initializes some local variables and distances associated to routeU to avoid always querying the same values in the distance matrix
 	void setLocalVariablesRouteV(); // Initializes some local variables and distances associated to routeV to avoid always querying the same values in the distance matrix
+	void setLocalVariablesRouteW(); // Initializes some local variables and distances associated to routeV to avoid always querying the same values in the distance matrix
 
 	// Functions in charge of excess load and duration penalty calculations
 	// #define penaltyExcessDuration(x) _penaltyExcessDuration(x)
@@ -163,12 +168,12 @@ private:
 	bool move6 (); // If (U,X) and (V,Y) are client nodes, swap (U,X) and (V,Y) 
 	 
 	/* 2-OPT and 2-OPT* MOVES */
-	bool three_opt();
-	std::vector< std::vector<int> > all_segments(int n);
-	int reverse_segment_if_better(int i, int j, int k);
 	bool move7 (); // If route(U) == route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
 	bool move8 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
 	bool move9 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,Y) and (V,X)
+	bool move10();
+	// std::vector< std::vector<int> > all_segments(int n);
+	// int reverse_segment_if_better(int i, int j, int k);
 
 	/* SUB-ROUTINES FOR EFFICIENT SWAP* EVALUATIONS */
 	bool swapStar(); // Calculates all SWAP* between routeU and routeV and apply the best improving move
