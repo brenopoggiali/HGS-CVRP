@@ -41,6 +41,7 @@ void LocalSearch::run(Individual * indiv, double penaltyCapacityLS, double penal
 					if (routeU == routeV && move7()) continue; // 2-OPT
 					if (routeU != routeV && move8()) continue; // 2-OPT*
 					if (routeU != routeV && move9()) continue; // 2-OPT*
+					if (routeU == routeV && move10()) continue; // 3-OPT
 
 					// Trying moves that insert nodeU directly after the depot
 					if (nodeV->prev->isDepot)
@@ -449,57 +450,162 @@ bool LocalSearch::move9()
 	return true;
 }
 
+std::vector<int> returnRoute(Route * route) {
+	Node * mynode = route->depot;
+	std::vector<int> myRoute;
+	bool firstIt = true;
+
+	while (!mynode->isDepot || firstIt)
+	{
+		myRoute.push_back(mynode->cour);
+		mynode = mynode->next;
+		firstIt = false;
+	}
+
+	return myRoute;
+}
+
+void revertPath(Node * nodeStartPrev, Node * nodeStart, Node * nodeEnd, Node * nodeEndNext) {
+	Node * nodeNum = nodeStart->next;
+	nodeStart->prev = nodeNum;
+	nodeStart->next = nodeEndNext;
+
+	while (nodeNum != nodeEnd)
+	{
+		Node * temp = nodeNum->next;
+		nodeNum->next = nodeNum->prev;
+		nodeNum->prev = temp;
+		nodeNum = temp;
+	}
+
+	nodeEnd->next = nodeEnd->prev;
+	nodeEnd->prev = nodeStartPrev;
+	nodeStartPrev->next = nodeEnd;
+	nodeEndNext->prev = nodeStart;
+}
+
 bool LocalSearch::move10() {
 	if (nodeU->position > nodeV->position) return false;
 	if (nodeU->next == nodeV) return false;
 
 	Node *bestW = nullptr, *bestZ = nullptr;
 	int minCost = 0;
-
+	int typeChange = 0;
 	for (int posW = 0; posW < (int)params->correlatedVertices[nodeV->cour].size(); posW++){
 		Node * nodeW = &clients[params->correlatedVertices[nodeV->cour][posW]];
 		if(nodeW->isDepot) continue;
 		if (nodeV->position > nodeW->position) continue;
 		if (nodeV->next == nodeW) continue;
 
-		// setLocalVariablesRouteW();
 		Route * routeW = nodeW->route;
 		Node * nodeZ = nodeW->next;
 		int nodeWIndex = nodeW->cour;
 		int nodeZIndex = nodeZ->cour;
 		if (routeW != routeV) continue;
+	
+		/* ORIGINAL = [ ... U-X ... V-Y ... W-Z ...] */
+		double d0 = params->timeCost[nodeUIndex][nodeXIndex]
+				+ params->timeCost[nodeVIndex][nodeYIndex]
+				+ params->timeCost[nodeWIndex][nodeZIndex];
 
-		double cost =  params->timeCost[nodeUIndex][nodeYIndex]
-		+ params->timeCost[nodeWIndex][nodeXIndex]
-		+ params->timeCost[nodeVIndex][nodeZIndex]
-		- params->timeCost[nodeUIndex][nodeXIndex]
-		- params->timeCost[nodeVIndex][nodeYIndex]
-		- params->timeCost[nodeWIndex][nodeZIndex]
-		+ nodeY->cumulatedReversalDistance
-		- nodeW->cumulatedReversalDistance
-		+ nodeX->cumulatedReversalDistance
-		- nodeV->cumulatedReversalDistance;
+		double d1 = params->timeCost[nodeUIndex][nodeVIndex] /* [ ... U-V ... X-Y ... W-Z ...] */
+				+ params->timeCost[nodeXIndex][nodeYIndex]
+				+ params->timeCost[nodeWIndex][nodeZIndex]
+				- d0
+				+ nodeV->cumulatedReversalDistance
+				- nodeX->cumulatedReversalDistance;
 
-		if (cost > -MY_EPSILON) continue;
+		double d2 = params->timeCost[nodeUIndex][nodeXIndex] /* [ ... U-X ... V-W ... Y-Z ...] */
+				+ params->timeCost[nodeVIndex][nodeWIndex]
+				+ params->timeCost[nodeYIndex][nodeZIndex]
+				- d0
+				+ nodeW->cumulatedReversalDistance
+				- nodeY->cumulatedReversalDistance;
 
-		if(cost < minCost){
-			minCost = cost;
+		double d3 = params->timeCost[nodeUIndex][nodeYIndex] /* [ ... U-Y ... W-X ... V-Z ...] */
+				+ params->timeCost[nodeWIndex][nodeXIndex]
+				+ params->timeCost[nodeVIndex][nodeZIndex]
+				-d0;
+
+		double d4 = params->timeCost[nodeZIndex][nodeXIndex] /* [ ... Z-X ... V-Y ... W-U ...] */
+				+ params->timeCost[nodeVIndex][nodeYIndex]
+				+ params->timeCost[nodeWIndex][nodeUIndex]
+				- d0
+				+ nodeX->cumulatedReversalDistance
+				- nodeW->cumulatedReversalDistance;
+
+
+		if (d1 > -MY_EPSILON && d2 > -MY_EPSILON && d3 > -MY_EPSILON && d4 > -MY_EPSILON) continue;
+
+		if(d1 < minCost){
+			minCost = d1;
 			bestW = nodeW;
 			bestZ = nodeZ;
+			typeChange = 1;
+		}
+
+		if(d2 < minCost){
+			minCost = d2;
+			bestW = nodeW;
+			bestZ = nodeZ;
+			typeChange = 2;
+		}
+		
+		if(d3 < minCost){
+			minCost = d3;
+			bestW = nodeW;
+			bestZ = nodeZ;
+			typeChange = 3;
+		}
+
+		if(d4 < minCost){
+			minCost = d4;
+			bestW = nodeW;
+			bestZ = nodeZ;
+			typeChange = 4;
 		}
 	}
 	if(minCost == 0) return false;
+	std::cout << "minCost " << minCost << std::endl;
+	std::vector<int> oldRoute = returnRoute(routeU);
+	/* ORIGINAL = [ ... U-X ... V-Y ... W-Z ...] */
+	std::cout << "begin revert " << typeChange << std::endl;
 
-	nodeU->next = nodeY;
-	nodeY->prev = nodeU;
-	bestW->next = nodeX;
-	nodeX->prev = bestW;
-	nodeV->next = bestZ;
-	bestZ->prev = nodeV;
+	if (typeChange == 1) { /* [ ... U-V ... X-Y ... W-Z ...] */
+		revertPath(nodeU, nodeX, nodeV, nodeY);
+	}
+
+	if (typeChange == 2) { /* [ ... U-X ... V-W ... Y-Z ...] */
+		return false;
+		revertPath(nodeV, bestW, nodeY, bestZ);
+	}
+	
+	if (typeChange == 3) { /* [ ... U-Y ... W-X ... V-Z ...] */
+		nodeU->next = nodeY;
+		nodeY->prev = nodeU;
+		bestW->next = nodeX;
+		nodeX->prev = bestW;
+		nodeV->next = bestZ;
+		bestZ->prev = nodeV;
+	}
+
+	if (typeChange == 4) { /* [ ... Z-X ... V-Y ... W-U ...] */
+		return false;
+		revertPath(bestZ, nodeX, bestW, nodeU);
+	}
+
+	std::cout << "end revert " << typeChange << std::endl;
+
 	nbMoves++;
 	searchCompleted = false;
+	
+	std::cout << "starting update route data" << std::endl;
 
 	updateRouteData(routeU);
+	std::cout << "ending update route data" << std::endl;
+
+	std::vector<int> newRoute = returnRoute(routeU);
+	std::cout << "Routes equal: " << std::equal(oldRoute.begin(), oldRoute.end(), newRoute.begin()) << std::endl;
 	return true;
 }
 
