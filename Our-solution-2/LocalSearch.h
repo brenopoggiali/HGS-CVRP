@@ -167,6 +167,9 @@ private:
 	bool move8 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,V) and (X,Y)
 	bool move9 (); // If route(U) != route(V), replace (U,X) and (V,Y) by (U,Y) and (V,X)
 
+	/* 3-OPT */
+	bool move10();
+
 	/* SUB-ROUTINES FOR EFFICIENT SWAP* EVALUATIONS */
 	bool swapStar(); // Calculates all SWAP* between routeU and routeV and apply the best improving move
 	double getCheapestInsertSimultRemoval(Node * U, Node * V, Node *& bestPosition); // Calculates the insertion cost and position in the route of V, where V is omitted

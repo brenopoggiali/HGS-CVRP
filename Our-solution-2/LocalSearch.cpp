@@ -449,6 +449,60 @@ bool LocalSearch::move9()
 	return true;
 }
 
+bool LocalSearch::move10() {
+	if (nodeU->position > nodeV->position) return false;
+	if (nodeU->next == nodeV) return false;
+
+	Node *bestW = nullptr, *bestZ = nullptr;
+	int minCost = 0;
+
+	for (int posW = 0; posW < (int)params->correlatedVertices[nodeV->cour].size(); posW++){
+		Node * nodeW = &clients[params->correlatedVertices[nodeV->cour][posW]];
+		if(nodeW->isDepot) continue;
+		if (nodeV->position > nodeW->position) continue;
+		if (nodeV->next == nodeW) continue;
+
+		// setLocalVariablesRouteW();
+		Route * routeW = nodeW->route;
+		Node * nodeZ = nodeW->next;
+		int nodeWIndex = nodeW->cour;
+		int nodeZIndex = nodeZ->cour;
+		if (routeW != routeV) continue;
+
+		double cost =  params->timeCost[nodeUIndex][nodeYIndex]
+		+ params->timeCost[nodeWIndex][nodeXIndex]
+		+ params->timeCost[nodeVIndex][nodeZIndex]
+		- params->timeCost[nodeUIndex][nodeXIndex]
+		- params->timeCost[nodeVIndex][nodeYIndex]
+		- params->timeCost[nodeWIndex][nodeZIndex]
+		+ nodeY->cumulatedReversalDistance
+		- nodeW->cumulatedReversalDistance
+		+ nodeX->cumulatedReversalDistance
+		- nodeV->cumulatedReversalDistance;
+
+		if (cost > -MY_EPSILON) continue;
+
+		if(cost < minCost){
+			minCost = cost;
+			bestW = nodeW;
+			bestZ = nodeZ;
+		}
+	}
+	if(minCost == 0) return false;
+
+	nodeU->next = nodeY;
+	nodeY->prev = nodeU;
+	bestW->next = nodeX;
+	nodeX->prev = bestW;
+	nodeV->next = bestZ;
+	bestZ->prev = nodeV;
+	nbMoves++;
+	searchCompleted = false;
+
+	updateRouteData(routeU);
+	return true;
+}
+
 bool LocalSearch::swapStar()
 {
 	SwapStarElement myBestSwapStar;
